@@ -23,10 +23,7 @@ public class R2dbcCategoryRepositoryAdapter implements CategoryRepositoryPort {
 
     @Override
     public Mono<Category> save(Category category) {
-        CategoryEntity categoryEntity = CategoryEntity.fromDomain(category);
-        return Mono.just(category)
-                .map(CategoryEntity::fromDomain)
-                .flatMap(categoryRepository::save)
+        return categoryRepository.save(CategoryEntity.fromDomain(category))
                 .map(CategoryEntity::toDomain);
     }
 

@@ -35,7 +35,7 @@ class GetBrandUseCaseImplTest {
         UUID brandId = UUID.randomUUID();
         Brand expectedBrand = Brand.builder()
                 .id(brandId.toString())
-                .name("Marca de Prueba")
+                .name("Test Brand")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -58,13 +58,13 @@ class GetBrandUseCaseImplTest {
         Mono<Brand> result = getBrandUseCase.getBrandById(brandId);
 
         StepVerifier.create(result)
-                .verifyComplete(); //  Verifica que el Mono se complete sin emitir ningún elemento.
+                .verifyComplete();
         verify(brandRepositoryPort, times(1)).findById(brandId.toString());
     }
 
     @Test
     void testGetBrandByName_success() {
-        String brandName = "Marca de Prueba";
+        String brandName = "Test Brand";
         Brand expectedBrand = Brand.builder()
                 .id(UUID.randomUUID().toString())
                 .name(brandName)
@@ -96,8 +96,8 @@ class GetBrandUseCaseImplTest {
 
     @Test
     void testGetAllBrands_success() {
-        Brand brand1 = Brand.builder().id("1").name("Marca 1").createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
-        Brand brand2 = Brand.builder().id("2").name("Marca 2").createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
+        Brand brand1 = Brand.builder().id("1").name("Brand 1").createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
+        Brand brand2 = Brand.builder().id("2").name("Brand 2").createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
         when(brandRepositoryPort.findAll()).thenReturn(Flux.just(brand1, brand2));
 
         Flux<Brand> result = getBrandUseCase.getAllBrands();

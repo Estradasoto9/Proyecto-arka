@@ -104,6 +104,27 @@ public class R2dbcProductRepositoryAdapter implements ProductRepositoryPort {
     }
 
     @Override
+    public Mono<Product> findByName(String name) {
+        return productRepository.findByName(name)
+                .flatMap(productEntity -> {
+                    if (productEntity == null) {
+                        return Mono.empty();
+                    }
+                    return productFeatureRepository.findByProductId(productEntity.getId())
+                            .map(entity -> ProductFeature.builder()
+                                    .name(entity.getName())
+                                    .value(entity.getValue())
+                                    .build())
+                            .collectList()
+                            .map(features -> {
+                                Product product = productEntity.toDomain();
+                                product.setFeatures(features);
+                                return product;
+                            });
+                });
+    }
+
+    @Override
     public Flux<Product> findAll() {
         return productRepository.findAll()
                 .flatMap(productEntity -> productFeatureRepository.findByProductId(productEntity.getId())

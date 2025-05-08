@@ -12,9 +12,9 @@ public class SwaggerConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("API de Producto")
+                        .title("Product API")
                         .version("1.0")
-                        .description("Documentación de la API para la gestión de productos, categorías y marcas")
+                        .description("API documentation for managing products, categories, and brands")
                 );
     }
 }

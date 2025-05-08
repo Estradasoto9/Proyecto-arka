@@ -34,16 +34,14 @@ class CreateProductUseCaseImplTest {
 
     @Test
     void testCreateProduct_success() {
-        // Given
         String sku = "PROD-001";
-        String name = "Producto de Prueba";
-        String description = "Descripción de prueba";
+        String name = "Test Product";
+        String description = "Test Description";
         BigDecimal price = new BigDecimal("10.00");
         UUID categoryId = UUID.randomUUID();
         UUID brandId = UUID.randomUUID();
         Integer stock = 100;
 
-        // El producto que se pasa al caso de uso debe tener id = null
         Product productToCreate = Product.builder()
                 .id(null)
                 .sku(sku)
@@ -57,7 +55,6 @@ class CreateProductUseCaseImplTest {
                 .features(Collections.emptyList())
                 .build();
 
-        // El producto simulado como "guardado" por el repositorio (con ID y timestamps)
         Product savedProduct = Product.builder()
                 .id(UUID.randomUUID().toString())
                 .sku(sku)
@@ -73,12 +70,12 @@ class CreateProductUseCaseImplTest {
                 .features(Collections.emptyList())
                 .build();
 
+        when(productRepositoryPort.findByName(name)).thenReturn(Mono.empty());
+        when(productRepositoryPort.findBySku(sku)).thenReturn(Mono.empty());
         when(productRepositoryPort.save(any(Product.class))).thenReturn(Mono.just(savedProduct));
 
-        // When
         Mono<Product> result = createProductUseCase.createProduct(productToCreate);
 
-        // Then
         StepVerifier.create(result)
                 .expectNextMatches(product ->
                         product.getId() != null &&
@@ -94,6 +91,8 @@ class CreateProductUseCaseImplTest {
                 )
                 .verifyComplete();
 
+        verify(productRepositoryPort, times(1)).findByName(name);
+        verify(productRepositoryPort, times(1)).findBySku(sku);
         verify(productRepositoryPort, times(1)).save(any(Product.class));
     }
 
@@ -102,8 +101,8 @@ class CreateProductUseCaseImplTest {
         Product productWithId = Product.builder()
                 .id(UUID.randomUUID().toString())
                 .sku("PROD-001")
-                .name("Producto de Prueba")
-                .description("Descripción de prueba")
+                .name("Test Product")
+                .description("Test Description")
                 .price(new BigDecimal("10.00"))
                 .categoryId(UUID.randomUUID())
                 .brandId(UUID.randomUUID())

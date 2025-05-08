@@ -11,7 +11,6 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -20,7 +19,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, String>> handleResponseStatusException(ResponseStatusException ex) {
-        String message = ex.getReason() != null ? ex.getReason() : "Ocurrió un error inesperado";
+        String message = ex.getReason() != null ? ex.getReason() : "An unexpected error occurred";
         return new ResponseEntity<>(Map.of("message", message), ex.getStatusCode());
     }
 
@@ -31,19 +30,19 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(java.util.NoSuchElementException.class)
     public ResponseEntity<Map<String, String>> handleNoSuchElementException(java.util.NoSuchElementException ex) {
-        return new ResponseEntity<>(Map.of("message", "Recurso no encontrado"), HttpStatus.NOT_FOUND);
+        return new ResponseEntity<>(Map.of("message", "Resource not found"), HttpStatus.NOT_FOUND);
     }
 
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, String>> handleRuntimeException(RuntimeException ex) {
-        logger.error("Error interno del servidor: {}", ex.getMessage(), ex);
-        return new ResponseEntity<>(Map.of("message", "Error interno del servidor"), HttpStatus.INTERNAL_SERVER_ERROR);
+        logger.error("Internal server error: {}", ex.getMessage(), ex);
+        return new ResponseEntity<>(Map.of("message", "Internal server error"), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGenericException(Exception ex) {
-        logger.error("Error interno inesperado: {}", ex.getMessage(), ex);
-        return new ResponseEntity<>(Map.of("message", "Error interno del servidor"), HttpStatus.INTERNAL_SERVER_ERROR);
+        logger.error("Unexpected internal error: {}", ex.getMessage(), ex);
+        return new ResponseEntity<>(Map.of("message", "Internal server error"), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @ExceptionHandler(WebExchangeBindException.class)

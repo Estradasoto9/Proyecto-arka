@@ -32,32 +32,28 @@ class CreateCategoryUseCaseImplTest {
 
     @Test
     void testCreateCategory_success() {
-        // Given
-        String name = "Electrónicos";
-        String description = "Categoría de productos electrónicos";
+        String name = "Electronics";
+        String description = "Category of electronic products";
 
-        // La categoría que llega al caso de uso no debe tener ID (se valida internamente)
         Category categoryToCreate = Category.builder()
                 .id(null)
                 .name(name)
                 .description(description)
                 .build();
 
-        // Simulamos lo que devolvería el repositorio después de guardar
         Category savedCategory = Category.builder()
-                .id(UUID.randomUUID().toString()) // Simula el ID generado por la BD
+                .id(UUID.randomUUID().toString())
                 .name(name)
                 .description(description)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
 
+        when(categoryRepositoryPort.findByName(name)).thenReturn(Mono.empty());
         when(categoryRepositoryPort.save(any(Category.class))).thenReturn(Mono.just(savedCategory));
 
-        // When
         Mono<Category> result = createCategoryUseCase.createCategory(categoryToCreate);
 
-        // Then
         StepVerifier.create(result)
                 .expectNextMatches(category ->
                         category.getId() != null &&
@@ -68,6 +64,7 @@ class CreateCategoryUseCaseImplTest {
                 )
                 .verifyComplete();
 
+        verify(categoryRepositoryPort, times(1)).findByName(name);
         verify(categoryRepositoryPort, times(1)).save(any(Category.class));
     }
 
@@ -76,8 +73,8 @@ class CreateCategoryUseCaseImplTest {
     void testCreateCategory_withExistingId_shouldFail() {
         Category categoryWithId = Category.builder()
                 .id(UUID.randomUUID().toString())
-                .name("Electrónicos")
-                .description("Categoría de productos electrónicos")
+                .name("Electronics")
+                .description("Category of electronic products")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();

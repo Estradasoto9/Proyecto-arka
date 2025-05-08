@@ -1,5 +1,6 @@
 package com.projectArka.product_service.application.usecase;
 
+import com.projectArka.product_service.domain.exception.BrandAlreadyExistsException;
 import com.projectArka.product_service.domain.model.Brand;
 import com.projectArka.product_service.domain.port.in.CreateBrandPort;
 import com.projectArka.product_service.domain.port.out.BrandRepositoryPort;
@@ -7,7 +8,6 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-
 
 @Service
 public class CreateBrandUseCaseImpl implements CreateBrandPort {
@@ -21,20 +21,19 @@ public class CreateBrandUseCaseImpl implements CreateBrandPort {
     @Override
     public Mono<Brand> createBrand(Brand brand) {
         if (brand.getId() != null) {
-            return Mono.error(new IllegalArgumentException("New brand must not have an ID"));
+            return Mono.error(new IllegalArgumentException("The new brand must not have an ID"));
         }
 
-        return Mono.just(brand)
-                .map(b -> {
-                    Brand newBrand = Brand.builder()
-                            .id(null)
-                            .name(b.getName())
-                            .createdAt(LocalDateTime.now())
-                            .updatedAt(LocalDateTime.now())
-                            .build();
-                    return newBrand;
-
-                })
-                .flatMap(brandRepositoryPort::save);
+        return brandRepositoryPort.findByName(brand.getName())
+                .flatMap(existingBrand ->
+                        Mono.<Brand>error(new BrandAlreadyExistsException("There is already a brand with the name: " + brand.getName()))
+                )
+                .switchIfEmpty(
+                        Mono.defer(() -> brandRepositoryPort.save(Brand.builder()
+                                .name(brand.getName())
+                                .createdAt(LocalDateTime.now())
+                                .updatedAt(LocalDateTime.now())
+                                .build()))
+                );
     }
 }

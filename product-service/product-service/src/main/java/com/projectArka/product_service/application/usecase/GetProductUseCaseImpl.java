@@ -3,6 +3,7 @@ package com.projectArka.product_service.application.usecase;
 import com.projectArka.product_service.domain.model.Product;
 import com.projectArka.product_service.domain.port.in.GetProductPort;
 import com.projectArka.product_service.domain.port.out.ProductRepositoryPort;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -26,6 +27,11 @@ public class GetProductUseCaseImpl implements GetProductPort {
     @Override
     public Mono<Product> getProductBySku(String sku) {
         return productRepositoryPort.findBySku(sku);
+    }
+
+    @Override
+    public Mono<Product> getProductByName(String name) {
+        return productRepositoryPort.findByName(name);
     }
 
     @Override

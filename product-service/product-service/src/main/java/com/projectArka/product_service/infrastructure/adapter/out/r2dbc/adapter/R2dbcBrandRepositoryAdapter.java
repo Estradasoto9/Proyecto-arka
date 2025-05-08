@@ -21,12 +21,10 @@ public class R2dbcBrandRepositoryAdapter implements BrandRepositoryPort {
 
     @Override
     public Mono<Brand> save(Brand brand) {
-        BrandEntity brandEntity = BrandEntity.fromDomain(brand);
-        return Mono.just(brand)
-                .map(BrandEntity::fromDomain)
-                .flatMap(brandRepository::save)
+        return brandRepository.save(BrandEntity.fromDomain(brand))
                 .map(BrandEntity::toDomain);
     }
+
 
     @Override
     public Mono<Brand> findById(String id) {

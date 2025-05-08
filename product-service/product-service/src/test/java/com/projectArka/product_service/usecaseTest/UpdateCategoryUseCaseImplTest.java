@@ -35,8 +35,8 @@ class UpdateCategoryUseCaseImplTest {
         String categoryId = UUID.randomUUID().toString();
         Category categoryToUpdate = Category.builder()
                 .id(categoryId)
-                .name("Categoría Actualizada")
-                .description("Descripción actualizada")
+                .name("Updated Category")
+                .description("Updated description")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -56,8 +56,8 @@ class UpdateCategoryUseCaseImplTest {
         String categoryId = UUID.randomUUID().toString();
         Category categoryToUpdate = Category.builder()
                 .id(categoryId)
-                .name("Categoría Actualizada")
-                .description("Descripción actualizada")
+                .name("Updated Category")
+                .description("Updated description")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();

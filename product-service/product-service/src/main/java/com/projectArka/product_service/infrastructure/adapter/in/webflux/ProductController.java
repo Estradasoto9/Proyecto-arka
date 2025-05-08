@@ -1,5 +1,10 @@
 package com.projectArka.product_service.infrastructure.adapter.in.webflux;
 
+import com.projectArka.product_service.application.dto.CreateProductRequestDTO;
+import com.projectArka.product_service.application.dto.ProductResponseDTO;
+import com.projectArka.product_service.application.dto.UpdateProductRequestDTO;
+import com.projectArka.product_service.application.mapper.ProductMapper;
+import com.projectArka.product_service.domain.exception.ProductAlreadyExistsException;
 import com.projectArka.product_service.domain.model.Product;
 import com.projectArka.product_service.domain.port.in.*;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,6 +14,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -21,112 +27,132 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/products")
-@Tag(name = "Products", description = "Operaciones relacionadas con los productos")
+@Tag(name = "Products", description = "Operations related to products")
 public class ProductController {
 
     private final CreateProductPort createProductPort;
     private final GetProductPort getProductPort;
     private final UpdateProductPort updateProductPort;
     private final DeleteProductPort deleteProductPort;
+    private final ProductMapper productMapper;
 
     public ProductController(CreateProductPort createProductPort,
                              GetProductPort getProductPort,
                              UpdateProductPort updateProductPort,
-                             DeleteProductPort deleteProductPort) {
+                             DeleteProductPort deleteProductPort,
+                             ProductMapper productMapper) {
         this.createProductPort = createProductPort;
         this.getProductPort = getProductPort;
         this.updateProductPort = updateProductPort;
         this.deleteProductPort = deleteProductPort;
+        this.productMapper = productMapper;
     }
 
-    @Operation(summary = "Crear un nuevo producto", description = "Crea un nuevo producto con los detalles proporcionados.")
-    @ApiResponse(responseCode = "201", description = "Producto creado exitosamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class)))
-    @ApiResponse(responseCode = "400", description = "Solicitud inválida")
+    @Operation(summary = "Create a new product", description = "Creates a new product with the provided details.")
+    @ApiResponse(responseCode = "201", description = "Product created successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class)))
+    @ApiResponse(responseCode = "400", description = "Invalid request")
     @PostMapping
-    public Mono<ResponseEntity<Product>> createProduct(@RequestBody Product product) {
+    public Mono<ResponseEntity<Map<String, String>>> createProduct(@Valid @RequestBody CreateProductRequestDTO requestDTO) {
+        Product product = productMapper.toEntity(requestDTO);
         return createProductPort.createProduct(product)
-                .map(createdProduct -> ResponseEntity.status(HttpStatus.CREATED).body(createdProduct));
+                .map(createdProduct -> ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Product created")))
+                .onErrorResume(ProductAlreadyExistsException.class, e -> {
+                    String message;
+                    if (e.getField().equals("name")) {
+                        message = "A product with the name: " + requestDTO.getName() + " already exists";
+                    } else {
+                        message = "A product with the SKU: " + requestDTO.getSku() + " already exists";
+                    }
+                    return Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", message)));
+                });
     }
 
-    @Operation(summary = "Obtener un producto por ID", description = "Obtiene un producto basado en su ID.")
-    @ApiResponse(responseCode = "200", description = "Producto encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class)))
-    @ApiResponse(responseCode = "404", description = "Producto no encontrado")
+    @Operation(summary = "Get a product by ID", description = "Retrieves a product based on its ID.")
+    @ApiResponse(responseCode = "200", description = "Product found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class)))
+    @ApiResponse(responseCode = "404", description = "Product not found")
     @GetMapping("/{id}")
-    public Mono<ResponseEntity<?>> getProductById(@Parameter(in = ParameterIn.PATH, name = "id", required = true, description = "ID del producto a obtener") @PathVariable String id) {
+    public Mono<ResponseEntity<?>> getProductById(@Parameter(in = ParameterIn.PATH, name = "id", required = true, description = "ID of the product to retrieve") @PathVariable String id) {
         return parseUUID(id)
                 .flatMap(getProductPort::getProductById)
-                .<ResponseEntity<?>>map(ResponseEntity::ok)
-                .defaultIfEmpty(
-                        ResponseEntity.status(HttpStatus.NOT_FOUND)
-                                .body(Map.of("message", "ID no válido"))
-                );
+                .<ResponseEntity<?>>map(product -> ResponseEntity.ok(productMapper.toDTO(product)))
+                .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    @Operation(summary = "Obtener un producto por SKU", description = "Obtiene un producto basado en su SKU.")
-    @ApiResponse(responseCode = "200", description = "Producto encontrado", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class)))
-    @ApiResponse(responseCode = "404", description = "Producto no encontrado")
+    @Operation(summary = "Get a product by SKU", description = "Retrieves a product based on its SKU.")
+    @ApiResponse(responseCode = "200", description = "Product found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class)))
+    @ApiResponse(responseCode = "404", description = "Product not found")
     @GetMapping("/sku/{sku}")
-    public Mono<ResponseEntity<?>> getProductBySku(@Parameter(in = ParameterIn.PATH, name = "sku", required = true, description = "SKU del producto a obtener") @PathVariable String sku) {
+    public Mono<ResponseEntity<?>> getProductBySku(@Parameter(in = ParameterIn.PATH, name = "sku", required = true, description = "SKU of the product to retrieve") @PathVariable String sku) {
         return getProductPort.getProductBySku(sku)
                 .<ResponseEntity<?>>map(ResponseEntity::ok)
                 .defaultIfEmpty(
                         ResponseEntity.status(HttpStatus.NOT_FOUND)
-                                .body(Map.of("message", "No se encontró ningún producto con el SKU: " + sku))
+                                .body(Map.of("message", "No product found with the SKU: " + sku))
                 );
     }
 
-    @Operation(summary = "Obtener todos los productos", description = "Obtiene una lista de todos los productos.")
-    @ApiResponse(responseCode = "200", description = "Lista de productos", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class, type = "array")))
+    @Operation(summary = "Get a product by name", description = "Retrieves a product based on its name.")
+    @ApiResponse(responseCode = "200", description = "Product found", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class)))
+    @ApiResponse(responseCode = "404", description = "Product not found")
+    @GetMapping("/name/{name}")
+    public Mono<ResponseEntity<ProductResponseDTO>> getProductByName(@Parameter(in = ParameterIn.PATH, name = "name", required = true, description = "Name of the product to retrieve") @PathVariable String name) {
+        return getProductPort.getProductByName(name)
+                .map(productMapper::toDTO)
+                .map(ResponseEntity::ok)
+                .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
+    @Operation(summary = "Get all products", description = "Retrieves a list of all products.")
+    @ApiResponse(responseCode = "200", description = "List of products", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class, type = "array")))
     @GetMapping
-    public Flux<Product> getAllProducts() {
-        return getProductPort.getAllProducts();
+    public Flux<ProductResponseDTO> getAllProducts() {
+        return getProductPort.getAllProducts()
+                .map(productMapper::toDTO);
     }
 
-    @Operation(summary = "Actualizar un producto", description = "Actualiza un producto existente basado en su ID.")
-    @ApiResponse(responseCode = "200", description = "Producto actualizado exitosamente", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Product.class)))
-    @ApiResponse(responseCode = "400", description = "Solicitud inválida")
-    @ApiResponse(responseCode = "404", description = "Producto no encontrado")
+    @Operation(summary = "Update a product", description = "Updates an existing product based on its ID.")
+    @ApiResponse(responseCode = "200", description = "Product updated successfully", content = @Content(mediaType = "application/json", schema = @Schema(implementation = ProductResponseDTO.class)))
+    @ApiResponse(responseCode = "400", description = "Invalid request")
+    @ApiResponse(responseCode = "404", description = "Product not found")
     @PutMapping("/{id}")
-    public Mono<ResponseEntity<Product>> updateProduct(@PathVariable String id, @RequestBody Product product) {
+    public Mono<ResponseEntity<ProductResponseDTO>> updateProduct(@PathVariable String id, @Valid @RequestBody UpdateProductRequestDTO updateRequestDTO) {
         return parseUUID(id)
-                .flatMap(uuid -> {
-                    product.setId(uuid.toString());
-                    return updateProductPort.updateProduct(product)
-                            .map(ResponseEntity::ok)
-                            .defaultIfEmpty(ResponseEntity.notFound().build());
-                });
+                .flatMap(uuid -> getProductPort.getProductById(uuid)
+                        .flatMap(existingProduct -> {
+                            Product productToUpdate = productMapper.toEntity(updateRequestDTO);
+                            productToUpdate.setId(uuid.toString()); // Ensure the ID is from the URL
+                            return updateProductPort.updateProduct(productToUpdate)
+                                    .map(updatedProduct -> ResponseEntity.ok(productMapper.toDTO(updatedProduct)));
+                        })
+                        .defaultIfEmpty(ResponseEntity.notFound().build()));
     }
 
-    @Operation(summary = "Eliminar un producto por ID", description = "Elimina un producto basado en su ID.")
-    @ApiResponse(responseCode = "200", description = "Producto eliminado exitosamente", content = @Content(mediaType = "application/json", schema = @Schema(type = "object", example = "{\"message\": \"Producto eliminado\"}")))
-    @ApiResponse(responseCode = "404", description = "Producto no encontrado")
+    @Operation(summary = "Delete a product by ID", description = "Deletes a product based on its ID.")
+    @ApiResponse(responseCode = "200", description = "Product deleted successfully", content = @Content(mediaType = "application/json", schema = @Schema(type = "object", example = "{\"message\": \"Product deleted\"}")))
+    @ApiResponse(responseCode = "404", description = "Product not found")
     @DeleteMapping("/{id}")
     public Mono<ResponseEntity<Map<String, String>>> deleteProductById(@PathVariable String id) {
         return parseUUID(id)
                 .flatMap(uuid -> getProductPort.getProductById(uuid)
                         .flatMap(existingProduct -> deleteProductPort.deleteProductById(uuid)
-                                .then(Mono.just(ResponseEntity.ok(Map.of("message", "Producto eliminado"))))
-                                .onErrorResume(ex -> Mono.just(ResponseEntity
-                                        .status(HttpStatus.NOT_FOUND)
-                                        .body(Map.of("message", "Producto no encontrado o error al eliminar"))))
-                        )
-                        .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Producto no encontrado con el ID: " + uuid)))
-                )
+                                .thenReturn(ResponseEntity.ok(Map.of("message", "Product deleted")))
+                                .onErrorResume(ex -> Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                                        .body(Map.of("message", "Product not found or error during deletion")))))
+                        .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                "Product not found with the ID: " + uuid))))
                 .onErrorResume(e -> {
                     if (e instanceof ResponseStatusException rse && rse.getStatusCode() == HttpStatus.BAD_REQUEST) {
-                        return Mono.just(ResponseEntity.badRequest().body(Map.of("message", "ID no válido. Debe ser un UUID.")));
+                        return Mono.just(ResponseEntity.badRequest().body(Map.of("message", "Invalid ID. Must be a UUID.")));
                     }
                     return Mono.error(e);
                 });
     }
 
-
-
     private Mono<UUID> parseUUID(String id) {
         try {
             return Mono.just(UUID.fromString(id));
         } catch (IllegalArgumentException e) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "ID no válido. Debe ser un UUID."));
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ID. Must be a UUID."));
         }
     }
 }

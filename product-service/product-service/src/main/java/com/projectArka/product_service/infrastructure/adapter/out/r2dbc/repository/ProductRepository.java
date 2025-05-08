@@ -8,4 +8,5 @@ import java.util.UUID;
 
 public interface ProductRepository extends R2dbcRepository<ProductEntity, UUID> {
     Mono<ProductEntity> findBySku(String sku);
+    Mono<ProductEntity> findByName(String name);
 }

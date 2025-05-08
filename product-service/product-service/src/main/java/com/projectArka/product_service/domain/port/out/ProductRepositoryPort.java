@@ -8,6 +8,7 @@ public interface ProductRepositoryPort {
     Mono<Product> save(Product product);
     Mono<Product> findById(String id);
     Mono<Product> findBySku(String sku);
+    Mono<Product> findByName(String name);
     Flux<Product> findAll();
     Mono<Void> deleteById(String id);
 }

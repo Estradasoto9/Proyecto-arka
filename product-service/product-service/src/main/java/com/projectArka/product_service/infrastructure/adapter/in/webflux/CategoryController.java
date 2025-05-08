@@ -1,17 +1,17 @@
 package com.projectArka.product_service.infrastructure.adapter.in.webflux;
 
-import com.projectArka.product_service.domain.model.Category;
-import com.projectArka.product_service.domain.port.in.CreateCategoryPort;
-import com.projectArka.product_service.domain.port.in.DeleteCategoryPort;
-import com.projectArka.product_service.domain.port.in.GetCategoryPort;
-import com.projectArka.product_service.domain.port.in.UpdateCategoryPort;
+import com.projectArka.product_service.application.dto.CategoryResponseDTO;
+import com.projectArka.product_service.application.dto.CreateCategoryRequestDTO;
+import com.projectArka.product_service.application.dto.UpdateCategoryRequestDTO;
+import com.projectArka.product_service.application.mapper.CategoryMapper;
+import com.projectArka.product_service.domain.exception.CategoryAlreadyExistsException;
+import com.projectArka.product_service.domain.port.in.*;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,100 +24,112 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/categories")
-@Tag(name = "Categories", description = "Operaciones relacionadas con las categorías")
+@Tag(name = "Categories", description = "Operations related to categories")
 public class CategoryController {
 
     private final CreateCategoryPort createCategoryPort;
     private final GetCategoryPort getCategoryPort;
     private final UpdateCategoryPort updateCategoryPort;
     private final DeleteCategoryPort deleteCategoryPort;
+    private final CategoryMapper categoryMapper;
 
     public CategoryController(CreateCategoryPort createCategoryPort,
                               GetCategoryPort getCategoryPort,
                               UpdateCategoryPort updateCategoryPort,
-                              DeleteCategoryPort deleteCategoryPort) {
+                              DeleteCategoryPort deleteCategoryPort,
+                              CategoryMapper categoryMapper) {
         this.createCategoryPort = createCategoryPort;
         this.getCategoryPort = getCategoryPort;
         this.updateCategoryPort = updateCategoryPort;
         this.deleteCategoryPort = deleteCategoryPort;
+        this.categoryMapper = categoryMapper;
     }
 
-    @Operation(summary = "Crear una nueva categoría", description = "Crea una nueva categoría con los detalles proporcionados.")
-    @ApiResponse(responseCode = "201", description = "Categoría creada exitosamente",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = Category.class)))
-    @ApiResponse(responseCode = "400", description = "Solicitud inválida")
+    @Operation(summary = "Create a new category", description = "Creates a new category with the provided details.")
+    @ApiResponse(responseCode = "201", description = "Category created successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CategoryResponseDTO.class)))
+    @ApiResponse(responseCode = "400", description = "Invalid request")
     @PostMapping
-    public Mono<ResponseEntity<Category>> createCategory(@RequestBody Category category) {
-        return createCategoryPort.createCategory(category)
-                .map(createdCategory -> ResponseEntity.status(HttpStatus.CREATED).body(createdCategory));
-    }
-
-    @Operation(summary = "Obtener una categoría por ID", description = "Obtiene una categoría basada en su ID.")
-    @ApiResponse(responseCode = "200", description = "Categoría encontrada",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = Category.class)))
-    @ApiResponse(responseCode = "404", description = "Categoría no encontrada")
-    @ApiResponse(responseCode = "500", description = "Error interno del servidor")
-    @GetMapping("/{id}")
-    public Mono<ResponseEntity<Category>> getCategoryById(@PathVariable String id) {
-        return parseUUID(id)
-                .flatMap(getCategoryPort::getCategoryById)
-                .map(ResponseEntity::ok)
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Categoría no encontrada con el ID: " + id)));
-    }
-
-    @Operation(summary = "Obtener todas las categorías", description = "Obtiene una lista de todas las categorías.")
-    @ApiResponse(responseCode = "200", description = "Lista de categorías",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = Category.class, type = "array")))
-    @ApiResponse(responseCode = "500", description = "Error interno del servidor")
-    @GetMapping
-    public Flux<Category> getAllCategories() {
-        return getCategoryPort.getAllCategories();
-    }
-
-    @Operation(summary = "Buscar categoría por nombre", description = "Busca una categoría por su nombre.")
-    @ApiResponse(responseCode = "200", description = "Categoría encontrada",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = Category.class)))
-    @ApiResponse(responseCode = "404", description = "Categoría no encontrada")
-    @GetMapping("/search")
-    public Mono<ResponseEntity<Category>> getCategoryByName(@RequestParam String name) {
-        return getCategoryPort.getCategoryByName(name)
-                .map(ResponseEntity::ok)
-                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "No se encontró ninguna categoría con el nombre: " + name)));
-    }
-
-    @Operation(summary = "Actualizar una categoría", description = "Actualiza una categoría existente basada en su ID.")
-    @ApiResponse(responseCode = "200", description = "Categoría actualizada exitosamente",
-            content = @Content(mediaType = "application/json", schema = @Schema(implementation = Category.class)))
-    @ApiResponse(responseCode = "400", description = "Solicitud inválida")
-    @ApiResponse(responseCode = "404", description = "Categoría no encontrada")
-    @PutMapping("/{id}")
-    public Mono<ResponseEntity<Category>> updateCategory(@PathVariable String id, @RequestBody Category category) {
-        return parseUUID(id)
-                .flatMap(uuid -> {
-                    category.setId(id);
-                    return updateCategoryPort.updateCategory(category)
-                            .map(ResponseEntity::ok)
-                            .defaultIfEmpty(ResponseEntity.notFound().build());
+    public Mono<ResponseEntity<Map<String, String>>> createCategory(@Valid @RequestBody CreateCategoryRequestDTO requestDTO) {
+        return createCategoryPort.createCategory(categoryMapper.toEntity(requestDTO))
+                .map(createdCategory -> ResponseEntity.status(HttpStatus.CREATED).body(Map.of("message", "Category created")))
+                .onErrorResume(CategoryAlreadyExistsException.class, e -> {
+                    String message = "A category with the name: " + requestDTO.getName() + " already exists.";
+                    return Mono.just(ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", message)));
                 });
     }
 
-    @Operation(summary = "Eliminar una categoría por ID", description = "Elimina una categoría basada en su ID.")
-    @ApiResponse(responseCode = "200", description = "Categoría eliminada exitosamente",
-            content = @Content(mediaType = "application/json", schema = @Schema(type = "object", example = "{\"message\": \"Categoría eliminada correctamente\"}")))
-    @ApiResponse(responseCode = "404", description = "Categoría no encontrada")
-    @ApiResponse(responseCode = "500", description = "Error interno del servidor")
+    @Operation(summary = "Get a category by ID", description = "Retrieves a category based on its ID.")
+    @ApiResponse(responseCode = "200", description = "Category found",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CategoryResponseDTO.class)))
+    @ApiResponse(responseCode = "404", description = "Category not found")
+    @ApiResponse(responseCode = "500", description = "Internal server error")
+    @GetMapping("/{id}")
+    public Mono<ResponseEntity<CategoryResponseDTO>> getCategoryById(@PathVariable String id) {
+        return parseUUID(id)
+                .flatMap(uuid -> getCategoryPort.getCategoryById(uuid)
+                        .map(categoryMapper::toDTO)
+                        .map(ResponseEntity::ok)
+                        .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found with ID: " + id))));
+    }
+
+    @Operation(summary = "Get all categories", description = "Retrieves a list of all categories.")
+    @ApiResponse(responseCode = "200", description = "List of categories",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CategoryResponseDTO.class, type = "array")))
+    @ApiResponse(responseCode = "500", description = "Internal server error")
+    @GetMapping
+    public Flux<CategoryResponseDTO> getAllCategories() {
+        return getCategoryPort.getAllCategories()
+                .map(categoryMapper::toDTO);
+    }
+
+    @Operation(summary = "Search category by name", description = "Searches for a category by its name.")
+    @ApiResponse(responseCode = "200", description = "Category found",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CategoryResponseDTO.class)))
+    @ApiResponse(responseCode = "404", description = "Category not found")
+    @GetMapping("/search")
+    public Mono<ResponseEntity<CategoryResponseDTO>> getCategoryByName(@RequestParam String name) {
+        return getCategoryPort.getCategoryByName(name) // Using getCategoryPort
+                .map(categoryMapper::toDTO)
+                .map(ResponseEntity::ok)
+                .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "No category found with the name: " + name)));
+    }
+
+    @Operation(summary = "Update a category", description = "Updates an existing category based on its ID.")
+    @ApiResponse(responseCode = "200", description = "Category updated successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(implementation = CategoryResponseDTO.class)))
+    @ApiResponse(responseCode = "400", description = "Invalid request")
+    @ApiResponse(responseCode = "404", description = "Category not found")
+    @PutMapping("/{id}")
+    public Mono<ResponseEntity<CategoryResponseDTO>> updateCategory(@PathVariable String id, @Valid @RequestBody UpdateCategoryRequestDTO updateRequestDTO) {
+        return parseUUID(id)
+                .flatMap(uuid -> getCategoryPort.getCategoryById(uuid)
+                        .flatMap(existingCategory -> {
+                            categoryMapper.updateEntity(updateRequestDTO, existingCategory);
+                            return updateCategoryPort.updateCategory(existingCategory)
+                                    .map(categoryMapper::toDTO)
+                                    .map(ResponseEntity::ok);
+                        })
+                        .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found with ID: " + uuid))));
+    }
+
+    @Operation(summary = "Delete a category by ID", description = "Deletes a category based on its ID.")
+    @ApiResponse(responseCode = "200", description = "Category deleted successfully",
+            content = @Content(mediaType = "application/json", schema = @Schema(type = "object", example = "{\"message\": \"Category deleted successfully\"}")))
+    @ApiResponse(responseCode = "404", description = "Category not found")
+    @ApiResponse(responseCode = "500", description = "Internal server error")
     @DeleteMapping("/{id}")
     public Mono<ResponseEntity<Map<String, String>>> deleteCategoryById(@PathVariable String id) {
         return parseUUID(id)
-                .flatMap(uuid -> getCategoryPort.getCategoryById(uuid) // Verificar si la categoría existe
+                .flatMap(uuid -> getCategoryPort.getCategoryById(uuid)
                         .flatMap(existingCategory -> deleteCategoryPort.deleteCategoryById(uuid)
-                                .then(Mono.just(ResponseEntity.ok(Map.of("message", "Categoría eliminada correctamente"))))
+                                .then(Mono.just(ResponseEntity.ok(Map.of("message", "Category deleted successfully"))))
                         )
-                        .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Categoría no encontrada con el ID: " + uuid)))
+                        .switchIfEmpty(Mono.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "Category not found with ID: " + uuid)))
                 )
                 .onErrorResume(e -> {
                     if (e instanceof ResponseStatusException && ((ResponseStatusException) e).getStatusCode() == HttpStatus.BAD_REQUEST) {
-                        return Mono.just(ResponseEntity.badRequest().body(Map.of("message", "ID no válido. Debe ser un UUID.")));
+                        return Mono.just(ResponseEntity.badRequest().body(Map.of("message", "Invalid ID. Must be a valid UUID")));
                     }
                     return Mono.error(e);
                 });
@@ -127,7 +139,7 @@ public class CategoryController {
         try {
             return Mono.just(UUID.fromString(id));
         } catch (IllegalArgumentException e) {
-            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "ID debe ser un UUID válido"));
+            return Mono.error(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid ID. Must be a valid UUID"));
         }
     }
 }

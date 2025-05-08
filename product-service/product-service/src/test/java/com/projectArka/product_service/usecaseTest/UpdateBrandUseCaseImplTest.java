@@ -35,7 +35,7 @@ class UpdateBrandUseCaseImplTest {
         String brandId = UUID.randomUUID().toString();
         Brand brandToUpdate = Brand.builder()
                 .id(brandId)
-                .name("Marca Actualizada")
+                .name("Updated Brand")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -55,7 +55,7 @@ class UpdateBrandUseCaseImplTest {
         String brandId = UUID.randomUUID().toString();
         Brand brandToUpdate = Brand.builder()
                 .id(brandId)
-                .name("Marca Actualizada")
+                .name("Updated Brand")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();

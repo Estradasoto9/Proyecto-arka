@@ -38,8 +38,8 @@ class GetProductUseCaseImplTest {
         Product expectedProduct = Product.builder()
                 .id(productId.toString())
                 .sku("PROD-001")
-                .name("Producto de Prueba")
-                .description("Descripción de prueba")
+                .name("Test Product")
+                .description("Test Description")
                 .price(new BigDecimal("10.00"))
                 .categoryId(UUID.randomUUID())
                 .brandId(UUID.randomUUID())
@@ -78,8 +78,8 @@ class GetProductUseCaseImplTest {
         Product expectedProduct = Product.builder()
                 .id(UUID.randomUUID().toString())
                 .sku(productSku)
-                .name("Producto de Prueba")
-                .description("Descripción de prueba")
+                .name("Test Product")
+                .description("Test Description")
                 .price(new BigDecimal("10.00"))
                 .categoryId(UUID.randomUUID())
                 .brandId(UUID.randomUUID())
@@ -114,8 +114,8 @@ class GetProductUseCaseImplTest {
 
     @Test
     void testGetAllProducts_success() {
-        Product product1 = Product.builder().id("1").sku("SKU-1").name("Producto 1").description("Desc 1").price(BigDecimal.TEN).categoryId(UUID.randomUUID()).brandId(UUID.randomUUID()).stock(10).active(true).createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).features(Collections.emptyList()).build();
-        Product product2 = Product.builder().id("2").sku("SKU-2").name("Producto 2").description("Desc 2").price(BigDecimal.TEN).categoryId(UUID.randomUUID()).brandId(UUID.randomUUID()).stock(10).active(true).createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).features(Collections.emptyList()).build();
+        Product product1 = Product.builder().id("1").sku("SKU-1").name("Product 1").description("Desc 1").price(BigDecimal.TEN).categoryId(UUID.randomUUID()).brandId(UUID.randomUUID()).stock(10).active(true).createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).features(Collections.emptyList()).build();
+        Product product2 = Product.builder().id("2").sku("SKU-2").name("Product 2").description("Desc 2").price(BigDecimal.TEN).categoryId(UUID.randomUUID()).brandId(UUID.randomUUID()).stock(10).active(true).createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).features(Collections.emptyList()).build();
         when(productRepositoryPort.findAll()).thenReturn(Flux.just(product1, product2));
 
         Flux<Product> result = getProductUseCase.getAllProducts();

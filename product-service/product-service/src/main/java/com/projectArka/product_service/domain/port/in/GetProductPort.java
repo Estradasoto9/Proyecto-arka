@@ -11,5 +11,6 @@ import java.util.UUID;
 public interface GetProductPort {
     Mono<Product> getProductById(UUID id);
     Mono<Product> getProductBySku(String sku);
+    Mono<Product> getProductByName(String name);
     Flux<Product> getAllProducts();
 }

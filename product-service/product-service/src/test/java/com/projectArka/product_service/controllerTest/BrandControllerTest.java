@@ -1,5 +1,9 @@
 package com.projectArka.product_service.controllerTest;
 
+import com.projectArka.product_service.application.dto.BrandResponseDTO;
+import com.projectArka.product_service.application.dto.CreateBrandRequestDTO;
+import com.projectArka.product_service.application.dto.UpdateBrandRequestDTO;
+import com.projectArka.product_service.application.mapper.BrandMapper;
 import com.projectArka.product_service.domain.model.Brand;
 import com.projectArka.product_service.domain.port.in.*;
 import com.projectArka.product_service.infrastructure.adapter.in.webflux.BrandController;
@@ -12,10 +16,12 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
-import java.util.Map;
 import java.util.UUID;
+import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import static org.springframework.web.reactive.function.BodyInserters.fromValue;
 
 public class BrandControllerTest {
@@ -26,8 +32,13 @@ public class BrandControllerTest {
     private GetBrandPort getBrandPort;
     private UpdateBrandPort updateBrandPort;
     private DeleteBrandPort deleteBrandPort;
+    private BrandMapper brandMapper;
 
     private Brand sampleBrand;
+    private BrandResponseDTO sampleBrandResponseDTO;
+    private CreateBrandRequestDTO createBrandRequestDTO;
+    private UpdateBrandRequestDTO updateBrandRequestDTO;
+    private String brandId;
 
     @BeforeEach
     public void setUp() {
@@ -35,44 +46,63 @@ public class BrandControllerTest {
         getBrandPort = Mockito.mock(GetBrandPort.class);
         updateBrandPort = Mockito.mock(UpdateBrandPort.class);
         deleteBrandPort = Mockito.mock(DeleteBrandPort.class);
+        brandMapper = Mockito.mock(BrandMapper.class);
 
         BrandController controller = new BrandController(
                 createBrandPort,
                 getBrandPort,
                 updateBrandPort,
-                deleteBrandPort
+                deleteBrandPort,
+                brandMapper
         );
 
         webTestClient = WebTestClient.bindToController(controller).build();
 
+        brandId = UUID.randomUUID().toString();
         sampleBrand = Brand.builder()
-                .id(UUID.randomUUID().toString())
+                .id(brandId)
                 .name("Nike")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
+
+        sampleBrandResponseDTO = BrandResponseDTO.builder()
+                .id(brandId)
+                .name("Nike")
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        createBrandRequestDTO = new CreateBrandRequestDTO();
+        createBrandRequestDTO.setName("Nike");
+
+        updateBrandRequestDTO = new UpdateBrandRequestDTO();
+        updateBrandRequestDTO.setName("Nike Updated");
     }
 
     @Test
     public void testCreateBrand() {
-        Mockito.when(createBrandPort.createBrand(any())).thenReturn(Mono.just(sampleBrand));
+        when(brandMapper.toEntity(any(CreateBrandRequestDTO.class))).thenReturn(sampleBrand);
+        when(createBrandPort.createBrand(any(Brand.class))).thenReturn(Mono.just(sampleBrand));
 
         webTestClient.post()
                 .uri("/api/brands")
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(fromValue(sampleBrand))
+                .body(fromValue(createBrandRequestDTO))
                 .exchange()
                 .expectStatus().isCreated()
                 .expectBody()
-                .jsonPath("$.name").isEqualTo("Nike");
+                .jsonPath("$.message").isEqualTo("Brand created");
     }
+
 
     @Test
     public void testGetBrandById_Found() {
-        Mockito.when(getBrandPort.getBrandById(any())).thenReturn(Mono.just(sampleBrand));
+        when(getBrandPort.getBrandById(any(UUID.class))).thenReturn(Mono.just(sampleBrand));
+        when(brandMapper.toDTO(any(Brand.class))).thenReturn(sampleBrandResponseDTO);
 
         webTestClient.get()
-                .uri("/api/brands/" + sampleBrand.getId())
+                .uri("/api/brands/" + brandId)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
@@ -81,7 +111,7 @@ public class BrandControllerTest {
 
     @Test
     public void testGetBrandById_NotFound() {
-        Mockito.when(getBrandPort.getBrandById(any())).thenReturn(Mono.empty());
+        when(getBrandPort.getBrandById(any(UUID.class))).thenReturn(Mono.empty());
 
         webTestClient.get()
                 .uri("/api/brands/" + UUID.randomUUID())
@@ -91,7 +121,8 @@ public class BrandControllerTest {
 
     @Test
     public void testGetAllBrands() {
-        Mockito.when(getBrandPort.getAllBrands()).thenReturn(Flux.just(sampleBrand));
+        when(getBrandPort.getAllBrands()).thenReturn(Flux.just(sampleBrand));
+        when(brandMapper.toDTO(any(Brand.class))).thenReturn(sampleBrandResponseDTO);
 
         webTestClient.get()
                 .uri("/api/brands")
@@ -103,7 +134,8 @@ public class BrandControllerTest {
 
     @Test
     public void testGetBrandByName_Found() {
-        Mockito.when(getBrandPort.getBrandByName("Nike")).thenReturn(Mono.just(sampleBrand));
+        when(getBrandPort.getBrandByName("Nike")).thenReturn(Mono.just(sampleBrand));
+        when(brandMapper.toDTO(any(Brand.class))).thenReturn(sampleBrandResponseDTO);
 
         webTestClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -118,7 +150,7 @@ public class BrandControllerTest {
 
     @Test
     public void testGetBrandByName_NotFound() {
-        Mockito.when(getBrandPort.getBrandByName("Adidas")).thenReturn(Mono.empty());
+        when(getBrandPort.getBrandByName("Adidas")).thenReturn(Mono.empty());
 
         webTestClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -131,12 +163,15 @@ public class BrandControllerTest {
 
     @Test
     public void testUpdateBrand_Success() {
-        Mockito.when(updateBrandPort.updateBrand(any())).thenReturn(Mono.just(sampleBrand));
+        when(brandMapper.toEntity(any(UpdateBrandRequestDTO.class))).thenReturn(sampleBrand);
+        when(getBrandPort.getBrandById(eq(UUID.fromString(brandId)))).thenReturn(Mono.just(sampleBrand));
+        when(updateBrandPort.updateBrand(any(Brand.class))).thenReturn(Mono.just(sampleBrand));
+        when(brandMapper.toDTO(any(Brand.class))).thenReturn(sampleBrandResponseDTO);
 
         webTestClient.put()
-                .uri("/api/brands/" + sampleBrand.getId())
+                .uri("/api/brands/" + brandId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(fromValue(sampleBrand))
+                .body(fromValue(updateBrandRequestDTO))
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
@@ -145,39 +180,38 @@ public class BrandControllerTest {
 
     @Test
     public void testUpdateBrand_NotFound() {
-        Mockito.when(updateBrandPort.updateBrand(any())).thenReturn(Mono.empty());
+        when(getBrandPort.getBrandById(eq(UUID.fromString(brandId)))).thenReturn(Mono.empty());
 
         webTestClient.put()
-                .uri("/api/brands/" + sampleBrand.getId())
+                .uri("/api/brands/" + brandId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .body(fromValue(sampleBrand))
+                .body(fromValue(updateBrandRequestDTO))
                 .exchange()
                 .expectStatus().isNotFound();
     }
 
     @Test
     public void testDeleteBrandById_Success() {
-        UUID brandUUID = UUID.fromString(sampleBrand.getId()); // sampleBrand ya tiene un UUID en string
-
-        Mockito.when(getBrandPort.getBrandById(eq(brandUUID)))
-                .thenReturn(Mono.just(sampleBrand));
-        Mockito.when(deleteBrandPort.deleteBrandById(eq(brandUUID)))
-                .thenReturn(Mono.empty());
+        UUID brandUUID = UUID.fromString(brandId);
+        when(getBrandPort.getBrandById(eq(brandUUID))).thenReturn(Mono.just(sampleBrand));
+        when(deleteBrandPort.deleteBrandById(eq(brandUUID))).thenReturn(Mono.empty());
 
         webTestClient.delete()
-                .uri("/api/brands/" + brandUUID)
+                .uri("/api/brands/" + brandId)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody()
-                .jsonPath("$.message").isEqualTo("Marca eliminada");
+                .jsonPath("$.message").isEqualTo("Brand deleted");
     }
 
     @Test
     public void testDeleteBrandById_Error() {
-        Mockito.when(deleteBrandPort.deleteBrandById(any())).thenReturn(Mono.error(new RuntimeException("Error")));
+        UUID brandUUID = UUID.fromString(brandId);
+        when(getBrandPort.getBrandById(eq(brandUUID))).thenReturn(Mono.just(sampleBrand));
+        when(deleteBrandPort.deleteBrandById(any(UUID.class))).thenReturn(Mono.error(new RuntimeException("Error")));
 
         webTestClient.delete()
-                .uri("/api/brands/" + sampleBrand.getId())
+                .uri("/api/brands/" + brandId)
                 .exchange()
                 .expectStatus().is5xxServerError();
     }

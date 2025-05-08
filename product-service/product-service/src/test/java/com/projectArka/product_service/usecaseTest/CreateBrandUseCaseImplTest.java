@@ -1,6 +1,7 @@
 package com.projectArka.product_service.usecaseTest;
 
 import com.projectArka.product_service.application.usecase.CreateBrandUseCaseImpl;
+import com.projectArka.product_service.domain.exception.BrandAlreadyExistsException;
 import com.projectArka.product_service.domain.model.Brand;
 import com.projectArka.product_service.domain.port.out.BrandRepositoryPort;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +33,6 @@ class CreateBrandUseCaseImplTest {
 
     @Test
     void testCreateBrand_success() {
-        // Given
         String name = "Samsung";
         Brand brandToCreate = Brand.builder()
                 .id(null)
@@ -46,6 +46,7 @@ class CreateBrandUseCaseImplTest {
                 .updatedAt(LocalDateTime.now())
                 .build();
 
+        when(brandRepositoryPort.findByName(name)).thenReturn(Mono.empty());
         when(brandRepositoryPort.save(any(Brand.class))).thenReturn(Mono.just(savedBrand));
 
         Mono<Brand> result = createBrandUseCase.createBrand(brandToCreate);
@@ -59,6 +60,7 @@ class CreateBrandUseCaseImplTest {
                 )
                 .verifyComplete();
 
+        verify(brandRepositoryPort, times(1)).findByName(name);
         verify(brandRepositoryPort, times(1)).save(any(Brand.class));
     }
 
@@ -66,7 +68,7 @@ class CreateBrandUseCaseImplTest {
     void testCreateBrand_withExistingId_shouldFail() {
         Brand brandWithId = Brand.builder()
                 .id(UUID.randomUUID().toString())
-                .name("Marca de Prueba")
+                .name("Test Brand")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -79,4 +81,32 @@ class CreateBrandUseCaseImplTest {
 
         verify(brandRepositoryPort, never()).save(any(Brand.class));
     }
+
+    @Test
+    void testCreateBrand_whenNameAlreadyExists_shouldFail() {
+        String name = "Samsung";
+        Brand brandToCreate = Brand.builder()
+                .id(null)
+                .name(name)
+                .build();
+
+        Brand existingBrand = Brand.builder()
+                .id(UUID.randomUUID().toString())
+                .name(name)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .build();
+
+        when(brandRepositoryPort.findByName(name)).thenReturn(Mono.just(existingBrand));
+
+        Mono<Brand> result = createBrandUseCase.createBrand(brandToCreate);
+
+        StepVerifier.create(result)
+                .expectError(BrandAlreadyExistsException.class)
+                .verify();
+
+        verify(brandRepositoryPort, times(1)).findByName(name);
+        verify(brandRepositoryPort, never()).save(any(Brand.class));
+    }
 }
+

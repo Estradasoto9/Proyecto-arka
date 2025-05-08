@@ -35,8 +35,8 @@ class GetCategoryUseCaseImplTest {
         UUID categoryId = UUID.randomUUID();
         Category expectedCategory = Category.builder()
                 .id(categoryId.toString())
-                .name("Electrónicos")
-                .description("Categoría de productos electrónicos")
+                .name("Electronics")
+                .description("Category of electronic products")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -65,8 +65,8 @@ class GetCategoryUseCaseImplTest {
 
     @Test
     void testGetAllCategories_success() {
-        Category category1 = Category.builder().id("1").name("Electrónicos").description("Desc 1").createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
-        Category category2 = Category.builder().id("2").name("Ropa").description("Desc 2").createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
+        Category category1 = Category.builder().id("1").name("Electronics").description("Desc 1").createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
+        Category category2 = Category.builder().id("2").name("Clothing").description("Desc 2").createdAt(LocalDateTime.now()).updatedAt(LocalDateTime.now()).build();
         when(categoryRepositoryPort.findAll()).thenReturn(Flux.just(category1, category2));
 
         Flux<Category> result = getCategoryUseCase.getAllCategories();
@@ -91,11 +91,11 @@ class GetCategoryUseCaseImplTest {
 
     @Test
     void testGetCategoryByName_success() {
-        String categoryName = "Electrónicos";
+        String categoryName = "Electronics";
         Category expectedCategory = Category.builder()
                 .id(UUID.randomUUID().toString())
                 .name(categoryName)
-                .description("Descripción de la categoría")
+                .description("Category description")
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
