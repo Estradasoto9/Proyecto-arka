@@ -2,19 +2,24 @@ package com.projectArka.product_service.application.usecase;
 
 import com.projectArka.product_service.domain.exception.CategoryAlreadyExistsException;
 import com.projectArka.product_service.domain.model.Category;
-import com.projectArka.product_service.domain.port.in.CreateCategoryPort;
+import com.projectArka.product_service.domain.port.in.ICreateCategoryPort;
+import com.projectArka.product_service.domain.port.in.IDeleteCategoryPort;
+import com.projectArka.product_service.domain.port.in.IGetCategoryPort;
+import com.projectArka.product_service.domain.port.in.IUpdateCategoryPort;
 import com.projectArka.product_service.domain.port.out.CategoryRepositoryPort;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Service
-public class CreateCategoryUseCaseImpl implements CreateCategoryPort {
+public class CategoryUseCaseIIII implements ICreateCategoryPort, IGetCategoryPort, IUpdateCategoryPort, IDeleteCategoryPort {
 
     private final CategoryRepositoryPort categoryRepositoryPort;
 
-    public CreateCategoryUseCaseImpl(CategoryRepositoryPort categoryRepositoryPort) {
+    public CategoryUseCaseIIII(CategoryRepositoryPort categoryRepositoryPort) {
         this.categoryRepositoryPort = categoryRepositoryPort;
     }
 
@@ -36,5 +41,30 @@ public class CreateCategoryUseCaseImpl implements CreateCategoryPort {
                                 .updatedAt(LocalDateTime.now())
                                 .build()))
                 );
+    }
+
+    @Override
+    public Mono<Void> deleteCategoryById(UUID id) {
+        return categoryRepositoryPort.deleteById(id);
+    }
+
+    @Override
+    public Mono<Category> getCategoryById(UUID id) {
+        return categoryRepositoryPort.findById(id.toString());
+    }
+
+    @Override
+    public Flux<Category> getAllCategories() {
+        return categoryRepositoryPort.findAll();
+    }
+
+    @Override
+    public Mono<Category> getCategoryByName(String name) {
+        return categoryRepositoryPort.findByName(name);
+    }
+
+    @Override
+    public Mono<Category> updateCategory(Category category) {
+        return categoryRepositoryPort.save(category);
     }
 }
